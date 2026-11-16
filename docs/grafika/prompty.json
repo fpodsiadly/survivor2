@@ -1,0 +1,46 @@
+{
+  "_comment": "Prompts for tools/recraft_generate.py (PLAN.md K7). Own sci-fi world (SPEC W40): no names, characters or look of Survivor.io. Edit freely; 'style_suffix' is appended to every prompt so the whole game keeps one style.",
+  "model": "recraftv4_1",
+  "size": "1024x1024",
+  "style_suffix": "flat 2D game sprite, top-down view, clean bold outlines, vibrant teal and amber sci-fi palette, simple shading, centered, isolated object, no text",
+  "assets": [
+    {"name": "art_player_drone", "prompt": "small hovering combat drone with a round glowing teal core and two side thrusters", "remove_background": true},
+
+    {"name": "art_enemy_crawler", "prompt": "slow alien crawler bug with six legs and a purple carapace", "remove_background": true},
+    {"name": "art_enemy_swarmer", "prompt": "tiny fast alien flying insect with glowing red eyes", "remove_background": true},
+    {"name": "art_enemy_spitter", "prompt": "alien plant creature that spits green acid, rooted body with an open mouth", "remove_background": true},
+    {"name": "art_enemy_tank", "prompt": "heavy armored alien beetle with thick grey plates", "remove_background": true},
+    {"name": "art_enemy_charger", "prompt": "rhino-like alien beast with a single crystal horn, lowered head ready to charge", "remove_background": true},
+    {"name": "art_elite_crawler", "prompt": "large elite alien crawler bug with glowing orange armor cracks", "remove_background": true},
+
+    {"name": "art_boss_hive", "prompt": "giant alien hive queen with translucent wings and a pulsing abdomen, boss creature", "remove_background": true},
+    {"name": "art_boss_golem", "prompt": "huge crystal rock golem with glowing cyan veins, boss creature", "remove_background": true},
+    {"name": "art_boss_mech", "prompt": "rogue mining mech walker with a drill arm and a laser eye, boss machine", "remove_background": true},
+
+    {"name": "art_crystal_green", "prompt": "small green energy crystal shard", "remove_background": true},
+    {"name": "art_crystal_blue", "prompt": "medium blue energy crystal shard", "remove_background": true},
+    {"name": "art_crystal_yellow", "prompt": "large golden energy crystal with a bright glow", "remove_background": true},
+
+    {"name": "art_pickup_magnet", "prompt": "horseshoe magnet device with blue energy field", "remove_background": true},
+    {"name": "art_pickup_bomb", "prompt": "round plasma bomb with a blinking red light", "remove_background": true},
+    {"name": "art_pickup_repair", "prompt": "repair kit canister with a green plus sign", "remove_background": true},
+    {"name": "art_pickup_coin", "prompt": "hexagonal amber credit coin", "remove_background": true},
+    {"name": "art_supply_crate", "prompt": "breakable metal supply crate with hazard stripes", "remove_background": true},
+    {"name": "art_chest", "prompt": "glowing alien tech chest with a golden lid", "remove_background": true},
+
+    {"name": "art_skill_thrown", "prompt": "icon of a spinning energy shuriken blade", "remove_background": true},
+    {"name": "art_skill_boomerang", "prompt": "icon of a curved returning plasma boomerang", "remove_background": true},
+    {"name": "art_skill_orbit", "prompt": "icon of three shield orbs circling a core", "remove_background": true},
+    {"name": "art_skill_aura", "prompt": "icon of a pulsing energy field ring", "remove_background": true},
+    {"name": "art_skill_lightning", "prompt": "icon of a forked lightning bolt striking down", "remove_background": true},
+    {"name": "art_skill_fire", "prompt": "icon of a burning plasma puddle", "remove_background": true},
+    {"name": "art_skill_rocket", "prompt": "icon of a small missile with an explosion", "remove_background": true},
+    {"name": "art_skill_ricochet", "prompt": "icon of a drill bullet bouncing off a wall", "remove_background": true},
+
+    {"name": "art_ground_zone1", "prompt": "seamless tileable alien ground texture, cracked teal soil with small glowing moss, top-down", "remove_background": false},
+    {"name": "art_ground_zone2", "prompt": "seamless tileable alien ground texture, dark crystal cave floor with cyan veins, top-down", "remove_background": false},
+    {"name": "art_ground_zone3", "prompt": "seamless tileable metal factory floor plates with amber warning lines, top-down", "remove_background": false},
+
+    {"name": "art_app_icon", "prompt": "app icon of a teal combat drone facing a swarm of alien bugs, bold and readable at small size", "remove_background": false}
+  ]
+}

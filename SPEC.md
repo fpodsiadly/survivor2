@@ -1,9 +1,9 @@
-status: approved | 2026-11-16 | stream: n/d (projekt prywatny, brak repo)
-repos: brak (katalog ~/Developer/private/surv20, nie jest repozytorium git)
+status: approved | 2026-11-16 | stream: n/d (projekt prywatny) | zmiana W41, W45 (stos) zatwierdzona przez użytkownika 2026-11-16
+repos: surv20 (github.com/fpodsiadly/survivor2) main
 
 # surv20 (nazwa robocza): specyfikacja
 
-Repo: brak (projekt prywatny). Ticket: brak. Wzorzec mechanik: Survivor.io (Habby, 2022), research w [RESEARCH.md](RESEARCH.md) (§1–4 runda 1, §5 runda 2 z danymi z wiki). Stos: Unity 6 (C#). Przykład kolegi `barteekpl/JumperIdle` jest niedostępny (404).
+Repo: brak (projekt prywatny). Ticket: brak. Wzorzec mechanik: Survivor.io (Habby, 2022), research w [RESEARCH.md](RESEARCH.md) (§1–4 runda 1, §5 runda 2 z danymi z wiki). Stos: Kotlin Multiplatform + Compose Multiplatform, tak jak w grze JumperIdle (zmiana z Unity 6 na polecenie użytkownika, 2026-11-16). Przykład kolegi `barteekpl/JumperIdle` jest niedostępny (404).
 
 Wersja 2 (2026-11-16): użytkownik chce gry „maksymalnie podobnej do Survivor.io”. Wersja 1 była uproszczonym MVP (10 min, 4 rzadkości, bez energii). Ta wersja odwzorowuje **mechaniki i systemy** Survivor.io z okresu premiery (sierpień–grudzień 2022), z jego zasadami i liczbami tam, gdzie są znane.
 
@@ -340,9 +340,9 @@ Nazwa gry, świat, postaci, wrogowie, bossowie, umiejętności, przedmioty, rozd
 Źródło: RESEARCH §4 (Tetris v. Xio, Apple 4.1/4.3).
 
 **W41. Balans w danych.** F1
-Wszystkie wartości do strojenia z tego dokumentu (umiejętności, ewolucje, wrogowie, osie czasu, krzywa XP, skrzynie, merge, limity, koszty, nagrody, energia, Patrol, Próby, progi czasowe) są w plikach danych. Zmiana liczby nie wymaga zmiany kodu.
+Wszystkie wartości do strojenia z tego dokumentu (umiejętności, ewolucje, wrogowie, osie czasu, krzywa XP, skrzynie, merge, limity, koszty, nagrody, energia, Patrol, Próby, progi czasowe) są zebrane w dwóch plikach: liczby w `core/Balance.kt`, treść (umiejętności, przedmioty, wrogowie, bossowie, rozdziały) w `core/Content.kt`, jak w JumperIdle. Zmiana liczby nie wymaga zmiany logiki gry, tylko tych plików.
 Liczby strukturalne (6+6 slotów, 3 karty, 15 stopni, 5 poziomów umiejętności) mogą być w kodzie.
-Źródło: `(decyzja autora)`.
+Źródło: `(decyzja autora)`; forma plików zmieniona 2026-11-16 razem ze stosem (użytkownik: „ten sam silnik i wszystko” co JumperIdle).
 
 **W42. Zapis lokalny.** F1
 Postęp zapisuje się lokalnie po każdej zmianie i przetrwa zabicie aplikacji, restart i aktualizację. Przerwany zapis nie niszczy postępu: zostaje poprzedni poprawny. Format zapisu ma wersję i nowa aplikacja wczytuje starsze. Przejście w tło w runie pauzuje grę, a powrót pokazuje pauzę. Zabicie aplikacji w trakcie runu = run stracony bez nagrody, a energia nie wraca. Energia i Patrol liczą czas według zegara urządzenia (P23).
@@ -358,8 +358,8 @@ Ekran pauzy: lista umiejętności z poziomami, Wznów, Ustawienia, Wyjdź (pora�
 Źródło: P12.
 
 **W45. Platformy i sieć.** F1 / F2
-Unity 6 (C#), jedna baza kodu. F1: Android 8+ (API 26). F2: iOS 15+ (build z Maca, P16). Aplikacja w F1–F2 nie łączy się z siecią i nie ma SDK reklam, analityki ani raportów awarii.
-Źródło: P2, P11, P16.
+Kotlin Multiplatform + Compose Multiplatform, jedna baza kodu w module `shared` (jak JumperIdle). F1: Android 8+ (API 26), APK z GitHub Actions. F2: iOS 15+, IPA budowane w GitHub Actions na macOS (bez własnego Maca). Aplikacja w F1–F2 nie łączy się z siecią i nie ma SDK reklam, analityki ani raportów awarii (logowanie Google i czas z serwera z JumperIdle nie są w zakresie F1–F2).
+Źródło: P2, P11, P16; stos zmieniony 2026-11-16 na polecenie użytkownika.
 
 ---
 
@@ -400,7 +400,7 @@ Wersja 1 miała P1–P16 z odpowiedziami z 2026-11-16. Odpowiedzi nadal obowiąz
 - P13 (motyw sci-fi) → ponownie otwarte jako P19.
 
 Obowiązują dalej (odpowiedzi z 2026-11-16, użytkownik):
-- P1/P2: repo kolegi niedostępne, silnik Unity 6 (C#),
+- P1/P2: silnik Unity 6 (C#), zastąpione 2026-11-16: stos jak w JumperIdle (Kotlin Multiplatform + Compose Multiplatform), W45,
 - P3: tylko pion,
 - P10: zabicie aplikacji w trakcie runu = run stracony,
 - P11: urządzenia średnie Pixel 6a / Galaxy A54 / iPhone 11, słabsze Galaxy A14 / iPhone XR, minimum Android 8 (API 26) i iOS 15,

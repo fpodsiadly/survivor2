@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder icon (drone silhouette) until the Recraft icon exists (PLAN.md K7). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#4FE3C1" android:pathData="M54,34 L66,54 L54,74 L42,54 Z" />
+    <path android:fillColor="#FFB547" android:pathData="M30,50 h14 v8 h-14 z M64,50 h14 v8 h-14 z" />
+</vector>

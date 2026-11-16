@@ -1,6 +1,6 @@
 status: approved | 2026-11-16 | stream: n/d (projekt prywatny)
-spec: 2026-11-16 @ 26e0fc11
-repos: brak (katalog ~/Developer/private/surv20, nie jest repozytorium git; projekt Unity powstanie w `game/`)
+spec: 2026-11-16 @ e9357b03
+repos: surv20 (github.com/fpodsiadly/survivor2) main @ 95ea572
 
 # surv20: plan implementacji fazy F1
 
@@ -12,7 +12,29 @@ Repo: brak (projekt prywatny). Specyfikacja: [SPEC.md](SPEC.md) (zatwierdzona, w
 - System: Ubuntu 26.04 LTS, 16 rdzeni, 59 GB RAM, 209 GB wolnego miejsca. Unity oficjalnie wspiera edytor na Ubuntu 22.04 i 24.04 z X11. 26.04 nie ma na liście, a jedno zgłoszenie mówi o problemach Hub 3.20 z pobieraniem modułów na 24.04/26.04. Wayland jest „experimental”.
 - Najnowsza linia LTS w dokumentacji to Unity 6.3 LTS (6000.3). Istnieją też nowsze wydania 6000.4–6000.7 (nie LTS).
 
-## Decyzje techniczne
+## Zmiana stosu 2026-11-16 (nadpisuje D1–D14)
+
+Polecenie użytkownika: grę robimy „analogicznie do JumperIdle, ten sam silnik i wszystko”, z grafikami z Recraft, nadal jako grę z mechanikami Survivor.io. JumperIdle (prywatne repo `barteekpl/JumperIdle`, wersja 0.15.0, przeczytane 2026-11-16) to Kotlin Multiplatform + Compose Multiplatform: moduł `shared` (logika `core/`, ekrany, rysunki `ui/`), `app/` (tylko `MainActivity`), `iosApp/` (SwiftUI, XcodeGen), Gradle 8.11.1, JDK 17, gra na żywo jako `Canvas` + `withFrameNanos` z czystą symulacją `step(dt, …)` w `core/`, liczby w `core/Balance.kt`, treść w `core/Content.kt`, testy JUnit w `shared/src/androidUnitTest`, CI w GitHub Actions (testy, APK, AAB, wydanie; IPA na macOS na żądanie), grafiki jako PNG w `composeResources/drawable/art_*`.
+
+Decyzje D1–D14 (Unity) przestają obowiązywać. Zamiast nich:
+
+| # | Decyzja | Dlaczego |
+|---|---|---|
+| K1 | Te same wersje co JumperIdle: Kotlin 2.1.21, Compose Multiplatform 1.8.2, Android Gradle Plugin 8.9.1, Gradle 8.11.1, JDK 17, compileSdk/targetSdk 36, minSdk 26, iOS 15 | „ten sam silnik”, sprawdzona konfiguracja |
+| K2 | Moduły `shared`, `app`, `iosApp` jak w JumperIdle; pakiet `com.surv20.game` (nazwa robocza) | ta sama struktura |
+| K3 | Logika w czystym Kotlinie w `shared/src/commonMain/.../core`, przeniesiona 1:1 z C# `Surv.Core` razem z testami (JUnit 4 w `shared/src/androidUnitTest`). Po przeniesieniu katalog `core/` (C#) usuwamy, zostaje w historii git | jedna baza kodu; testy pilnują, że reguły się nie zmieniły |
+| K4 | Liczby w `core/Balance.kt`, treść w `core/Content.kt` (SPEC W41) | jak JumperIdle |
+| K5 | Run: czysta symulacja `RunSim.step(dt, input)` w `core/` (tłum jako tablice `FloatArray`, siatka przestrzenna, bez fizyki), rysowanie w `ui/RunView.kt` przez `Canvas` + `withFrameNanos`, sprite'y z jednego atlasu (`drawImage` z wycinkiem). Bramka E1 bez zmian (W43). Zapas, gdy nie przejdzie: kryształy i pociski jako `drawPoints`/`drawVertices`, prostsze sprite'y, niższy limit wrogów; ostatecznie osobny widok Androida | Compose to „silnik” JumperIdle; wydajność przy setkach obiektów jest głównym ryzykiem |
+| K6 | Zapis: JSON (kotlinx.serialization) w `KeyValueStore` platformy (SharedPreferences / NSUserDefaults), klucz główny i zapasowy, wersja + migracje (W42) | wzór `GameSaveStore` z JumperIdle, reguły z P19 |
+| K7 | Grafiki z Recraft: skrypt `tools/recraft_generate.py` czyta prompty z `docs/grafika/prompty.json`, klucz API ze zmiennej `RECRAFT_API_TOKEN` (nigdy w repo), zapisuje PNG z przezroczystym tłem do `shared/src/commonMain/composeResources/drawable/art_*.png`. Jeden styl Recraft dla całej gry. Prompty bez nazw i postaci z Survivor.io (W40). Użycie komercyjne wymaga płatnego planu Recraft | polecenie użytkownika; powtarzalne generowanie |
+| K8 | CI jak JumperIdle: push na `main` → testy, APK, AAB, GitHub Release ze stałymi linkami; IPA na ręczne uruchomienie (macOS). Klucz podpisu z sekretów; bez sekretu klucz debug | APK do instalacji bez kabla, iOS bez Maca (rozwiązuje P16) |
+| K9 | Wersja w `app/build.gradle.kts`, podbijana przy każdym commicie zmieniającym aplikację (semver jak JumperIdle) | instalacja jako aktualizacja |
+| K10 | Teksty: zasoby Compose (`composeResources/values/strings.xml` EN i `values-pl`) zamiast pakietu Localization Unity (W44) | Compose Multiplatform |
+| K11 | Menu deweloperskie i licznik FPS tylko w buildzie debug (W43) | jak D11 |
+
+Wpływ na pozycje planu: P1 = JDK 17 (jest) + Android SDK (cmdline-tools) + Gradle; P2 = szkielet Gradle/KMP + CI; P3–P7 = prototyp w Compose z bramką; P19 = K6; P26 = K10; P30 = zapas z K5; P31 nieaktualne (nie ma Unity); dane z D8 (ScriptableObjecty) = K4. Kolejność etapów E0–E5 bez zmian.
+
+## Decyzje techniczne (Unity, nieaktualne od 2026-11-16)
 
 Każda decyzja jest punktem do zatwierdzenia (sekcja Pytania).
 
@@ -311,3 +333,19 @@ suite: core ./core/test.sh rc=0, 135 testów, red: brak
 focus: zapowiedź szarży | Charger_stops_and_telegraphs_at_least_0_7_s_then_charges_along_the_locked_direction | mutation (zapowiedź 0,2 s) → red
 other check: P4 brak przenoszenia na mapie zamkniętej | mutation (przenoszenie włączone dla Closed) → red (Near_enemies_and_closed_map_are_never_relocated)
 deviation: bomba może dobić bossa lub elitę, jeśli mają mniej niż 10% maks. HP (obrażenia jak każde inne) | zatwierdzone przez użytkownika: nie (do potwierdzenia)
+
+## Realizacja 2026-11-16 (3): stos JumperIdle
+branch: surv20 main @ 95ea572 + zmiany lokalne (niezacommitowane)
+P1: done | JDK 17 (system), Android SDK w ~/Android/Sdk (cmdline-tools 15859902, platforma 36, build-tools 35, platform-tools; sumy kontrolne zgodne, licencje zaakceptowane przez użytkownika), Gradle 8.11.1 w ~/.local/share | gradle --version → 8.11.1
+P2: done (K1, K2, K8, K9) | settings/build.gradle.kts, shared/, app/, iosApp/, .github/workflows/build.yml, .github/scripts/test_summary.py | gradle :shared:testDebugUnitTest :app:assembleDebug rc=0, APK 9,6 MB; build iOS nieweryfikowany lokalnie (wymaga macOS, działa tylko w CI)
+K3: done | logika z C# przeniesiona do shared/src/commonMain/kotlin/com/surv20/game/core/{equipment,run,meta,save}, katalog core/ (C#) usunięty | gradle :shared:testDebugUnitTest rc=0, 91 testów JUnit (pokrycie jak 135 przypadków NUnit; przypadki parametryzowane połączone w pętle)
+K4: częściowo | core/Balance.kt (wszystkie liczby); Content.kt powstanie z treścią w E2
+K6: done | save/Save.kt: KeyValueStore, klucz główny + zapasowy, migracje JsonObject | MetaAndSaveTest green
+K7: częściowo | tools/recraft_generate.py (stdlib, --dry-run, RECRAFT_API_TOKEN), docs/grafika/prompty.json (31 grafik) | --dry-run działa; zapytania do API nieweryfikowane (brak tokenu); format odpowiedzi removeBackground przyjęty z dokumentacji, niesprawdzony
+K10: częściowo | composeResources/values (EN) i values-pl
+suite: shared gradle :shared:testDebugUnitTest rc=0, 91 testów, red: brak
+focus: tabela merge'a | excellentPlusTwoTakesTwoAnyExcellent | mutation (2→1 doskonałe) → red
+focus: harmonogram z areną | bossFallingDueDuringAFightWaitsThenEntersThreeSecondsAfterIt | mutation (bez opóźnienia 3 s) → red
+focus: zapis z kopią | corruptMainLoadsTheBackup | mutation (bez kopii zapasowej) → red
+deviation: stos zmieniony z Unity na Kotlin Multiplatform jak JumperIdle (K1–K11) | zatwierdzone przez użytkownika: tak
+deviation: zapis atomowy przez dwa klucze KeyValueStore zamiast pliku tmp + .bak (K6) | zatwierdzone przez użytkownika: tak (część zmiany stosu)
