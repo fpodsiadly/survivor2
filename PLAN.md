@@ -297,3 +297,17 @@ focus: zapis atomowy | Corrupt_main_file_loads_the_backup, Crash_between_the_two
 deviation: logika Core przed E0/E1, testy przez dotnet zamiast Test Runnera Unity | zatwierdzone przez użytkownika: tak
 deviation: wartości domyślne do strojenia w kodzie fabryk (EquipmentBalance.CreateDefault, RewardBalance, ExperienceBar.DefaultCurve, AccountProgress.DefaultCurve) do czasu ScriptableObjectów z D8 | zatwierdzone przez użytkownika: nie (do decyzji przy P2)
 scaffolding: brak (core/ zostaje docelowo jako lokalny pakiet Unity)
+
+## Realizacja 2026-11-16 (2)
+branch: surv20 main @ eb241f7 + zmiany lokalne (niezacommitowane)
+P3: częściowo (Core: ArenaLayout, widok 10 jednostek, kamera dla 3 formatów) | Run/Arena.cs | ./core/test.sh green; joystick i kamera Unity wymagają edytora
+P4: częściowo (Core: Relocate, HordeSides, SpawnPoint, SpawnQueue 400) | Run/Arena.cs | ./core/test.sh: Run/ArenaTests green; symulacja Burst wymaga edytora
+P13: częściowo (Core: Bomb, OffscreenTimer) | Run/Pickups.cs | ./core/test.sh green
+P16: częściowo (Core: granice mapy zamkniętej i korytarza, kamera) | Run/Arena.cs | ./core/test.sh green
+P17: częściowo (Core: ChargerBrain) | Run/Enemies.cs | ./core/test.sh green
+P18: częściowo (Core: BossValidator, BossArena) | Run/Enemies.cs, Run/Arena.cs | ./core/test.sh green
+P26: częściowo (Core: Language.Pick) | Meta/Language.cs | ./core/test.sh green
+suite: core ./core/test.sh rc=0, 135 testów, red: brak
+focus: zapowiedź szarży | Charger_stops_and_telegraphs_at_least_0_7_s_then_charges_along_the_locked_direction | mutation (zapowiedź 0,2 s) → red
+other check: P4 brak przenoszenia na mapie zamkniętej | mutation (przenoszenie włączone dla Closed) → red (Near_enemies_and_closed_map_are_never_relocated)
+deviation: bomba może dobić bossa lub elitę, jeśli mają mniej niż 10% maks. HP (obrażenia jak każde inne) | zatwierdzone przez użytkownika: nie (do potwierdzenia)
