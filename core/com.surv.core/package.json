@@ -1,0 +1,10 @@
+{
+  "name": "com.surv.core",
+  "version": "0.1.0",
+  "displayName": "Surv Core",
+  "description": "Engine-independent game rules (cards, merge, timeline, rewards, save). Pure C# 9 / .NET Standard 2.1.",
+  "unity": "6000.3",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}
