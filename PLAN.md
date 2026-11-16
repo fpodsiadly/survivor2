@@ -349,3 +349,17 @@ focus: harmonogram z areną | bossFallingDueDuringAFightWaitsThenEntersThreeSeco
 focus: zapis z kopią | corruptMainLoadsTheBackup | mutation (bez kopii zapasowej) → red
 deviation: stos zmieniony z Unity na Kotlin Multiplatform jak JumperIdle (K1–K11) | zatwierdzone przez użytkownika: tak
 deviation: zapis atomowy przez dwa klucze KeyValueStore zamiast pliku tmp + .bak (K6) | zatwierdzone przez użytkownika: tak (część zmiany stosu)
+
+## Realizacja 2026-11-16 (4): E1 prototyp runu
+branch: surv20 main @ 8c0c9ea + zmiany lokalne (niezacommitowane); wersja 0.2.0 (versionCode 2)
+P3: done (logika + widok) | core/run/Joystick.kt, ui/RunView.kt (kamera, widok 10 jednostek, wyższy ekran więcej w pionie) | JoystickTest green (górna 1/3 ignorowana, drugi palec ignorowany, puszczenie zatrzymuje, siła rośnie z wychyleniem)
+P4: done (prototyp) | core/run/RunSim.kt: tłum jako tablice FloatArray, siatka przestrzenna 4096 kubełków, odpychanie 3×3 komórki, przenoszenie odległych (W19), limit 400 | RunSimTest green
+P5: done (prototyp) | broń B1 (najbliższy wróg w widoku, 0,8 s, 15 obrażeń), kryształy z przyciąganiem i zbieraniem, XP | RunSimTest green
+P6: done | core/FrameStats.kt (średnia i 1% low z okna 60 s), scenariusz obciążeniowy w RunSim (stress=true), przycisk „Test wydajności” w buildzie debug | FrameStatsTest green; krok symulacji w scenariuszu: 0,11 ms na JVM (komputer autora)
+P7: not done (wymaga telefonu autora; patrz niżej)
+suite: shared gradle :shared:testDebugUnitTest rc=0, 105 testów, red: brak; gradle :app:assembleDebug rc=0
+deviation: wróg zabity w trakcie kroku może przez jedną klatkę być testowany w starej komórce siatki (zamiana z ostatnim elementem tablicy) | zatwierdzone przez użytkownika: nie (drobne, do oceny przy E2)
+deviation: obrazki zastąpione kształtami (dron = trójkąt, wrogowie = kółka, kryształy = punkty) do czasu grafik z Recraft | zatwierdzone przez użytkownika: tak (grafiki odłożone 2026-11-16)
+other check: P3–P6 na emulatorze Androida 15 (x86_64, renderowanie programowe swiftshader, 1080×2400): menu, run (joystick, tłum, kryształy, HUD, pauza) i test wydajności działają bez awarii; FPS emulatora (≈44, 1% low ≈15) nie jest miarą W43
+deviation: odpychanie tłumu zmienione z prędkości na korektę pozycji (połowa nakładki na klatkę, maks. 0,25 j.), wrogowie nie wchodzą w drona, kontakt z marginesem 0,05 j.; powód: na zrzucie z emulatora tłum zlewał się w jedną plamę | zatwierdzone przez użytkownika: nie (strojenie w E2)
+suite: shared gradle :shared:testDebugUnitTest rc=0, 106 testów, red: brak

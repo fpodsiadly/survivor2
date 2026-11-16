@@ -2,6 +2,7 @@ package com.surv20.game
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.ApplicationInfo
 import android.os.SystemClock
 import com.surv20.game.core.KeyValueStore
 
@@ -13,6 +14,8 @@ class AndroidPlatform(
     override val store: KeyValueStore = SharedPrefsStore(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 
     override fun elapsedMillis(): Long = SystemClock.elapsedRealtime()
+
+    override val isDebugBuild: Boolean = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
     companion object {
         const val PREFS_NAME = "surv20"

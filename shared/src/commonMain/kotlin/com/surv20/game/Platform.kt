@@ -12,4 +12,7 @@ interface GamePlatform {
 
     // Monotonic clock in ms, used for frame timing outside Compose.
     fun elapsedMillis(): Long
+
+    // True in debug builds: shows the developer menu and FPS meter (SPEC W43, PLAN K11).
+    val isDebugBuild: Boolean
 }

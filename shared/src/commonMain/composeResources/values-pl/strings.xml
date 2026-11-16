@@ -1,4 +1,15 @@
 <resources>
     <string name="app_title">Surv20</string>
-    <string name="coming_soon">Run jest w budowie. Wkrótce.</string>
+    <string name="play">Graj</string>
+    <string name="stress_test">Test wydajności</string>
+    <string name="prototype_note">Prototyp: jedna fala wrogów, podstawowa broń, kryształy.</string>
+    <string name="pause">Pauza</string>
+    <string name="resume">Wznów</string>
+    <string name="quit">Wyjdź</string>
+    <string name="defeat">Porażka</string>
+    <string name="survived">Przetrwano %1$s</string>
+    <string name="kills">Zabici %1$d</string>
+    <string name="level">Poz. %1$d</string>
+    <string name="fps">FPS %1$d · 1% low %2$d · %3$ds</string>
+    <string name="back">Wróć</string>
 </resources>

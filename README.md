@@ -13,11 +13,19 @@ Po każdym pushu na `main` GitHub Actions publikuje wydanie ze stałymi linkami.
 
 ## Status
 
-Wersja 0.1.0: szkielet aplikacji i cała logika gry z testami. Sama rozgrywka jeszcze nie działa.
+Wersja 0.2.0: prototyp runu (etap E1) i cała logika gry z testami.
 
 Działa:
-- aplikacja Android i iOS z jednego modułu `shared` (Kotlin Multiplatform + Compose Multiplatform), na razie z ekranem startowym,
-- reguły gry jako czysta logika z 91 testami JUnit:
+- aplikacja Android i iOS z jednego modułu `shared` (Kotlin Multiplatform + Compose Multiplatform),
+- **prototyp runu:**
+  - pływający joystick (dolne 2/3 ekranu, jeden palec),
+  - dron gracza z bronią, która co 0,8 s rzuca pocisk w najbliższego wroga,
+  - dwa typy wrogów z narastającym spawnem, odpychaniem w tłumie i przenoszeniem odległych,
+  - kryształy XP z przyciąganiem i poziomami,
+  - HP z nietykalnością po trafieniu, pauza i ekran porażki,
+  - na razie proste kształty zamiast grafik,
+- **test wydajności** (menu, tylko w buildzie debug): 300 wrogów, 200 pocisków i 300 kryształów, licznik średnich FPS i „1% low” z okna 60 s (SPEC W43),
+- reguły gry jako czysta logika z 106 testami JUnit:
   - **ekwipunek:** 15 stopni rzadkości, pełna tabela merge'a, „Połącz wszystko”, ulepszanie z limitami, reset, statystyki i bonusy stopni,
   - **run:** oś czasu z bossami, arena i alarmy, sloty 6+6, karty 1 z 3, ewolucje (także aktywna+aktywna), skrzynia 1/3/5, XP i kryształy,
   - **mapy:** geometria trzech formatów (otwarta, zamknięta, korytarz), kamera, spawn hord, przenoszenie odległych wrogów, limit 400 wrogów,
@@ -26,7 +34,7 @@ Działa:
   - **zapis:** JSON z kopią zapasową i migracjami wersji.
 
 Następne kroki (PLAN.md, etapy E1–E5):
-1. prototyp runu na `Canvas` z bramką wydajności: 300 wrogów, 200 pocisków i 300 kryształów przy 60 FPS,
+1. pomiar testu wydajności na telefonie (bramka W43: średnio ≥ 58 FPS, 1% low ≥ 45),
 2. umiejętności, wrogowie i bossowie w grze, HUD, pauza,
 3. ekwipunek, talenty, rozdziały i ekran główny,
 4. grafiki z Recraft, dźwięk, balans, akceptacja F1.
@@ -55,10 +63,10 @@ Ten sam co w grze JumperIdle:
   - `core/` to czysta logika bez Androida i iOS:
     - `Balance.kt` zawiera wszystkie liczby do strojenia,
     - `equipment/` to przedmioty, merge, ulepszanie i statystyki,
-    - `run/` to oś czasu, umiejętności, karty, skrzynia, XP, mapy i walka,
+    - `run/` to oś czasu, umiejętności, karty, skrzynia, XP, mapy, walka, joystick i symulacja runu `RunSim` (tablice, siatka przestrzenna, bez fizyki),
     - `meta/` to nagrody, konto, talenty, rozdziały i język,
     - `save/` to zapis,
-  - `ui/` to motyw i rysowanie,
+  - `ui/` to motyw i rysowanie (`RunView.kt`: pętla `withFrameNanos`, `Canvas`, punkty rysowane paczkami),
   - `App.kt` to powłoka gry,
   - `Platform.kt` zawiera różnice między platformami.
 - `shared/src/androidMain`, `shared/src/iosMain` to zapis (SharedPreferences, NSUserDefaults) i wejście iOS.

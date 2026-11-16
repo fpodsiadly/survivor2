@@ -28,6 +28,9 @@ object IosPlatform : GamePlatform {
     override val store: KeyValueStore = UserDefaultsStore(NSUserDefaults.standardUserDefaults)
 
     override fun elapsedMillis(): Long = (NSProcessInfo.processInfo.systemUptime * 1000.0).toLong()
+
+    @OptIn(kotlin.experimental.ExperimentalNativeApi::class)
+    override val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary
 }
 
 class UserDefaultsStore(private val defaults: NSUserDefaults) : KeyValueStore {
