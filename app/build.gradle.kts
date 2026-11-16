@@ -17,8 +17,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump on every commit that changes the app (PLAN.md K9).
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
     }
 
     // Fixed signing key from CI secrets so every build installs as an update; locally the debug key is used.

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.os.SystemClock
+import android.util.Log
 import com.surv20.game.core.KeyValueStore
 
 // Android: save in SharedPreferences.
@@ -17,8 +18,13 @@ class AndroidPlatform(
 
     override val isDebugBuild: Boolean = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
+    override fun log(message: String) {
+        Log.i(LOG_TAG, message)
+    }
+
     companion object {
         const val PREFS_NAME = "surv20"
+        const val LOG_TAG = "Surv20"
     }
 }
 

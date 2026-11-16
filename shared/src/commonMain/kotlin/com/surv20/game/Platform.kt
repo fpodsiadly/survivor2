@@ -15,4 +15,7 @@ interface GamePlatform {
 
     // True in debug builds: shows the developer menu and FPS meter (SPEC W43, PLAN K11).
     val isDebugBuild: Boolean
+
+    // Developer log line (Android: logcat tag "Surv20"); used for the W43 stress result (PLAN P6).
+    fun log(message: String)
 }

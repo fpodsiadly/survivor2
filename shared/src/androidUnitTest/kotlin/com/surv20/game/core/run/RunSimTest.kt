@@ -1,5 +1,7 @@
 package com.surv20.game.core.run
 
+import com.surv20.game.core.Balance
+import com.surv20.game.core.EnemyType
 import com.surv20.game.core.FrameStats
 import com.surv20.game.core.SeededRandom
 import com.surv20.game.core.Vec2
@@ -186,7 +188,116 @@ class RunSimContactTest {
         for (i in 0 until s.enemyCount) {
             val dx = s.enemyX[i] - s.playerX
             val dy = s.enemyY[i] - s.playerY
-            assertTrue("enemy inside the drone", sqrt(dx * dx + dy * dy) >= RunSim.PLAYER_RADIUS + 0.2f - 1e-3f)
+            assertTrue("enemy inside the drone", sqrt(dx * dx + dy * dy) >= Balance.PLAYER_RADIUS + 0.2f - 1e-3f)
         }
+    }
+}
+
+// Final check fixes 4-8 (PLAN E1): relocation side, weapon targeting, crystal merge, stress scenario, spawn queue.
+class RunSimRulesTest {
+    private fun sim(stress: Boolean = false, seed: Int = 5) =
+        RunSim(ArenaLayout(MapFormat.OPEN, 16f / 9f), SeededRandom(seed), stress)
+
+    private fun run(s: RunSim, seconds: Double, move: Vec2 = Vec2.ZERO) {
+        var t = 0.0
+        while (t < seconds) {
+            s.step(1.0 / 60, RunInput(move))
+            t += 1.0 / 60
+        }
+    }
+
+    @Test
+    fun standingPlayerGetsFarEnemiesBackOnRandomSides() {
+        val s = sim()
+        run(s, 12.0, Vec2(1f, 0f)) // last move: right
+        assertTrue("enemies ${s.enemyCount}", s.enemyCount >= 8)
+        for (i in 0 until s.enemyCount) s.enemyX[i] = s.playerX - 100f
+        s.step(1.0 / 60, RunInput(Vec2.ZERO))
+        val half = s.layout.viewHalfSize
+        val right = (0 until s.enemyCount).count { s.enemyX[it] > s.playerX + half.x }
+        assertTrue("all ${s.enemyCount} relocated to the last move side", right < s.enemyCount)
+    }
+
+    @Test
+    fun movingPlayerGetsFarEnemiesBackOnTheMoveSide() {
+        val s = sim()
+        run(s, 12.0, Vec2(1f, 0f))
+        for (i in 0 until s.enemyCount) s.enemyX[i] = s.playerX - 100f
+        s.step(1.0 / 60, RunInput(Vec2(1f, 0f)))
+        val half = s.layout.viewHalfSize
+        for (i in 0 until s.enemyCount) assertTrue(s.enemyX[i] > s.playerX + half.x)
+    }
+
+    @Test
+    fun weaponShootsTheNearestEnemyOnScreen() {
+        val s = sim()
+        s.addEnemy(3f, 0f, EnemyType.WALKER)
+        s.addEnemy(0f, -2f, EnemyType.WALKER)
+        s.step(1.0 / 60, RunInput(Vec2.ZERO))
+        assertEquals(1, s.projectileCount)
+        assertTrue("flies down", s.projY[0] < 0f)
+        assertEquals(0f, s.projX[0], 1e-3f)
+    }
+
+    @Test
+    fun weaponIgnoresEnemiesOffScreenEvenWhenNearer() {
+        val s = sim()
+        val half = s.layout.viewHalfSize
+        s.addEnemy(half.x + 0.5f, 0f, EnemyType.WALKER) // off screen, distance ≈ 5.5
+        s.addEnemy(half.x - 0.5f, half.y - 0.5f, EnemyType.WALKER) // on screen, in the corner, farther
+        s.step(1.0 / 60, RunInput(Vec2.ZERO))
+        assertEquals(1, s.projectileCount)
+        assertTrue("flies to the on-screen enemy (up)", s.projY[0] > 0.05f)
+    }
+
+    @Test
+    fun noShotWithoutEnemiesOnScreen() {
+        val s = sim()
+        s.addEnemy(s.layout.viewHalfSize.x + 3f, 0f, EnemyType.WALKER)
+        s.step(1.0 / 60, RunInput(Vec2.ZERO))
+        assertEquals(0, s.projectileCount)
+    }
+
+    @Test
+    fun atThreeHundredCrystalsTheOldestMergeAndValueIsKept() {
+        val s = sim()
+        repeat(300) { s.addCrystal(100f + it, 50f, CrystalKind.GREEN) }
+        s.removeCrystal(0) // the newest moves into slot 0: slot order is no longer age order
+        s.addCrystal(500f, 50f, CrystalKind.GREEN)
+        s.addCrystal(600f, 50f, CrystalKind.YELLOW)
+        assertEquals(300, s.crystalCount)
+        assertEquals(299 + 1 + 25, (0 until s.crystalCount).sumOf { s.crystalValue[it] })
+        val oldest = (0 until s.crystalCount).single { s.crystalX[it] == 101f }
+        assertEquals("the two oldest (x=101, x=102) merged", 2, s.crystalValue[oldest])
+        assertFalse((0 until s.crystalCount).any { s.crystalX[it] == 102f })
+    }
+
+    @Test
+    fun stressScenarioDoesNotKillOrHurt() {
+        val s = sim(stress = true)
+        run(s, 5.0)
+        assertEquals(0, s.kills)
+        assertEquals(s.health.maxHealth, s.health.health, 1e-9)
+    }
+
+    @Test
+    fun surplusOverTheLimitWaitsAndFillsFreedSlots() {
+        val s = sim()
+        // The player is healed every step (as by a meat pickup) so the run lasts until the crowd hits the limit.
+        fun tick() {
+            s.health.heal(s.health.maxHealth)
+            s.step(1.0 / 60, RunInput(Vec2(0.3f, 0.2f)))
+        }
+        var t = 0.0
+        while (t < 600.0 && !(s.enemyCount == s.enemyCapacity && s.spawnWaiting > 0)) {
+            tick()
+            t += 1.0 / 60
+        }
+        assertEquals(s.enemyCapacity, s.enemyCount)
+        assertTrue("surplus queued", s.spawnWaiting > 0)
+        val kills = s.kills
+        while (s.kills == kills) tick()
+        tick()
+        assertEquals("freed slot refilled from the queue", s.enemyCapacity, s.enemyCount)
     }
 }

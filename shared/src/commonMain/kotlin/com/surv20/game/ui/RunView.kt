@@ -32,21 +32,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Canvas as BitmapCanvas
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PointMode
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.surv20.game.core.Balance
+import com.surv20.game.core.EnemyType
+import com.surv20.game.core.FramePacer
 import com.surv20.game.core.FrameStats
 import com.surv20.game.core.SeededRandom
 import com.surv20.game.core.Vec2
 import com.surv20.game.core.run.ArenaLayout
 import com.surv20.game.core.run.CrystalKind
-import com.surv20.game.core.run.EnemyType
 import com.surv20.game.core.run.Joystick
 import com.surv20.game.core.run.MapFormat
 import com.surv20.game.core.run.RunInput
@@ -65,7 +68,7 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.floor
 import kotlin.random.Random
 
-// Placeholder look until Recraft art exists (PLAN K7): shapes and points only.
+// Placeholder look until Recraft art exists (PLAN K7): drawn shapes in a sprite atlas.
 private val Ground = Color(0xFF0E1B2B)
 private val GridLine = Color(0xFF17304A)
 private val WalkerColor = Color(0xFF9B5DE5)
@@ -85,9 +88,9 @@ private data class Hud(
 )
 
 // Live run (PLAN P3-P6, K5): RunSim stepped in a withFrameNanos loop and drawn on a Canvas; the crowd, projectiles
-// and crystals are drawn as batched points so a frame is a handful of draw calls regardless of their number.
+// and crystals are sprites from one atlas.
 @Composable
-fun RunView(stress: Boolean, showFps: Boolean, onExit: () -> Unit) {
+fun RunView(stress: Boolean, showFps: Boolean, log: (String) -> Unit, onExit: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize().background(Ground)) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
@@ -95,25 +98,39 @@ fun RunView(stress: Boolean, showFps: Boolean, onExit: () -> Unit) {
         val sim = remember(stress) {
             RunSim(ArenaLayout(MapFormat.OPEN, maxOf(1f, heightPx / widthPx)), SeededRandom(Random.nextInt()), stress)
         }
-        val joystick = remember { with(density) { Joystick(maxRadiusPx = 56.dp.toPx(), deadZonePx = 6.dp.toPx()) } }
+        val joystick = remember {
+            with(density) { Joystick(maxRadiusPx = Balance.JOYSTICK_RADIUS_DP.dp.toPx(), deadZonePx = Balance.JOYSTICK_DEAD_ZONE_DP.dp.toPx()) }
+        }
         val stats = remember { FrameStats() }
-        val buffers = remember { PointBuffers(sim) }
+        val atlas = remember { SpriteAtlas() }
         var frame by remember { mutableLongStateOf(0L) }
         var paused by remember { mutableStateOf(false) }
         var hud by remember { mutableStateOf(Hud()) }
 
         LaunchedEffect(sim) {
-            var last = withFrameNanos { it }
+            // SPEC W43: frames capped at 60 and the simulation in fixed 1/60 s steps, whatever the display rate.
+            val pacer = FramePacer()
             var hudTimer = 0.0
+            var nextReportAt = STRESS_REPORT_SECONDS
             while (true) {
                 withFrameNanos { now ->
-                    val raw = (now - last) / 1_000_000_000.0
-                    last = now
-                    stats.record(raw)
-                    val dt = raw.coerceIn(0.0, 0.05)
-                    if (!paused && !sim.dead) sim.step(dt, RunInput(joystick.direction()))
+                    if (!pacer.onVsync(now / 1_000_000_000.0)) return@withFrameNanos
+                    val shown = pacer.frameSeconds
+                    stats.record(shown)
+                    if (!paused && !sim.dead) {
+                        val input = RunInput(joystick.direction())
+                        repeat(pacer.simSteps) { sim.step(Balance.SIM_STEP_SECONDS, input) }
+                    }
                     frame++
-                    hudTimer += raw
+                    // PLAN P6: the stress result also goes to the log (adb logcat) after each full minute.
+                    if (stress && sim.time >= nextReportAt) {
+                        nextReportAt += STRESS_REPORT_SECONDS
+                        log(
+                            "W43 stress ${sim.time.toInt()} s: avg ${stats.averageFps().toInt()} FPS, " +
+                                "1% low ${stats.onePercentLowFps().toInt()} FPS, window ${stats.windowFilledSeconds.toInt()} s",
+                        )
+                    }
+                    hudTimer += shown
                     if (hudTimer >= 0.25) {
                         hudTimer = 0.0
                         hud = Hud(
@@ -150,7 +167,7 @@ fun RunView(stress: Boolean, showFps: Boolean, onExit: () -> Unit) {
             },
         ) {
             frame // read the frame counter so the canvas redraws every frame
-            drawRun(sim, buffers)
+            drawRun(sim, atlas)
             drawJoystick(joystick)
         }
 
@@ -189,27 +206,43 @@ fun RunView(stress: Boolean, showFps: Boolean, onExit: () -> Unit) {
     }
 }
 
-// Reused point arrays: one batch per colour, unused slots parked far off screen (no allocation per frame).
-private class PointBuffers(sim: RunSim) {
-    val enemies = Array(EnemyType.entries.size) { FloatArray(sim.enemyCapacity * 2) }
-    val flashing = FloatArray(sim.enemyCapacity * 2)
-    val projectiles = FloatArray(sim.projectileCapacity * 2)
-    val crystals = Array(3) { FloatArray(sim.crystalCapacity * 2) }
-    val enemyPaints = EnemyType.entries.map { pointPaint(if (it == EnemyType.WALKER) WalkerColor else SwarmerColor) }
-    val flashPaint = pointPaint(Color.White)
-    val projectilePaint = pointPaint(ProjectileColor)
-    val crystalPaints = CrystalColors.map { pointPaint(it) }
+// Placeholder sprite atlas (PLAN K5): every enemy, crystal and projectile is one drawImage from a single bitmap,
+// the same path the Recraft art will take, so the W43 measurement covers the real renderer.
+private class SpriteAtlas {
+    val image = ImageBitmap(CELL * COUNT, CELL)
+    val cellSize = IntSize(CELL, CELL)
+
+    init {
+        val canvas = BitmapCanvas(image)
+        val paint = Paint()
+        fun disc(index: Int, fill: Color, rim: Color) {
+            val c = Offset(index * CELL + CELL / 2f, CELL / 2f)
+            paint.color = rim
+            canvas.drawCircle(c, CELL / 2f - 1f, paint)
+            paint.color = fill
+            canvas.drawCircle(c, CELL / 2f - 6f, paint)
+        }
+        disc(WALKER, WalkerColor, Color(0xFF5B2A99))
+        disc(SWARMER, SwarmerColor, Color(0xFF99283A))
+        disc(FLASH, Color.White, Color(0xFFDDDDDD))
+        disc(PROJECTILE, ProjectileColor, Color(0xFFB38F00))
+        for (k in 0 until 3) disc(CRYSTAL + k, CrystalColors[k], Color.White)
+    }
+
+    fun src(index: Int) = IntOffset(index * CELL, 0)
 
     companion object {
-        const val OFF = -100_000f
-        fun pointPaint(color: Color) = Paint().apply {
-            this.color = color
-            strokeCap = StrokeCap.Round
-        }
+        const val CELL = 64
+        const val WALKER = 0 // EnemyType ordinal
+        const val SWARMER = 1
+        const val FLASH = 2
+        const val PROJECTILE = 3
+        const val CRYSTAL = 4 // + kind (green, blue, yellow)
+        const val COUNT = 7
     }
 }
 
-private fun DrawScope.drawRun(sim: RunSim, b: PointBuffers) {
+private fun DrawScope.drawRun(sim: RunSim, atlas: SpriteAtlas) {
     val scale = size.width / ArenaLayout.VIEW_WIDTH
     val camera = sim.layout.cameraFor(Vec2(sim.playerX, sim.playerY))
     val cx = size.width / 2f
@@ -230,61 +263,34 @@ private fun DrawScope.drawRun(sim: RunSim, b: PointBuffers) {
         gy += step
     }
 
-    // Crystals by colour.
-    for (k in 0 until 3) b.crystals[k].fill(PointBuffers.OFF)
-    val crystalFill = IntArray(3)
+    // One sprite: centred at the world point, `radius` in world units; skipped when off screen.
+    fun sprite(index: Int, x: Float, y: Float, radius: Float) {
+        val r = radius * scale
+        val px = sx(x)
+        val py = sy(y)
+        if (px < -r || px > size.width + r || py < -r || py > size.height + r) return
+        val d = (r * 2f).toInt().coerceAtLeast(1)
+        drawImage(atlas.image, atlas.src(index), atlas.cellSize, IntOffset((px - r).toInt(), (py - r).toInt()), IntSize(d, d))
+    }
+
     for (i in 0 until sim.crystalCount) {
         val k = sim.crystalKind[i] - CrystalKind.GREEN.ordinal
-        val n = crystalFill[k]++
-        b.crystals[k][n * 2] = sx(sim.crystalX[i])
-        b.crystals[k][n * 2 + 1] = sy(sim.crystalY[i])
+        sprite(SpriteAtlas.CRYSTAL + k, sim.crystalX[i], sim.crystalY[i], 0.08f + 0.03f * k)
     }
-
-    // Enemies by type, hit flash on top.
-    for (t in b.enemies.indices) b.enemies[t].fill(PointBuffers.OFF)
-    b.flashing.fill(PointBuffers.OFF)
-    val enemyFill = IntArray(b.enemies.size)
-    var flashFill = 0
     for (i in 0 until sim.enemyCount) {
         val t = sim.enemyType[i]
-        val n = enemyFill[t]++
-        val x = sx(sim.enemyX[i])
-        val y = sy(sim.enemyY[i])
-        b.enemies[t][n * 2] = x
-        b.enemies[t][n * 2 + 1] = y
-        if (sim.enemyFlash[i] > 0f) {
-            b.flashing[flashFill * 2] = x
-            b.flashing[flashFill * 2 + 1] = y
-            flashFill++
-        }
+        val index = if (sim.enemyFlash[i] > 0f) SpriteAtlas.FLASH else t
+        sprite(index, sim.enemyX[i], sim.enemyY[i], ENEMY_TYPES[t].radius)
     }
-
-    b.projectiles.fill(PointBuffers.OFF)
     for (i in 0 until sim.projectileCount) {
-        b.projectiles[i * 2] = sx(sim.projX[i])
-        b.projectiles[i * 2 + 1] = sy(sim.projY[i])
-    }
-
-    drawIntoCanvas { canvas ->
-        for (k in 0 until 3) {
-            b.crystalPaints[k].strokeWidth = scale * (0.16f + 0.06f * k)
-            canvas.drawRawPoints(PointMode.Points, b.crystals[k], b.crystalPaints[k])
-        }
-        EnemyType.entries.forEachIndexed { t, type ->
-            b.enemyPaints[t].strokeWidth = scale * type.radius * 2f
-            canvas.drawRawPoints(PointMode.Points, b.enemies[t], b.enemyPaints[t])
-        }
-        b.flashPaint.strokeWidth = scale * 0.4f
-        canvas.drawRawPoints(PointMode.Points, b.flashing, b.flashPaint)
-        b.projectilePaint.strokeWidth = scale * RunSim.PROJECTILE_RADIUS * 2f
-        canvas.drawRawPoints(PointMode.Points, b.projectiles, b.projectilePaint)
+        sprite(SpriteAtlas.PROJECTILE, sim.projX[i], sim.projY[i], Balance.PROJECTILE_RADIUS)
     }
 
     // Player: a drone triangle pointing where it last moved.
     val px = sx(sim.playerX)
     val py = sy(sim.playerY)
     val dir = if (sim.lastMove.lengthSquared > 0f) sim.lastMove else Vec2(0f, 1f)
-    val r = RunSim.PLAYER_RADIUS * scale * 1.3f
+    val r = Balance.PLAYER_RADIUS * scale * 1.3f
     val tip = Offset(px + dir.x * r, py - dir.y * r)
     val left = Offset(px - dir.y * r * 0.7f - dir.x * r * 0.6f, py - dir.x * r * 0.7f + dir.y * r * 0.6f)
     val right = Offset(px + dir.y * r * 0.7f - dir.x * r * 0.6f, py + dir.x * r * 0.7f + dir.y * r * 0.6f)
@@ -295,10 +301,14 @@ private fun DrawScope.drawRun(sim: RunSim, b: PointBuffers) {
 private fun DrawScope.drawJoystick(stick: Joystick) {
     val origin = stick.origin ?: return
     val knob = stick.knob() ?: return
-    drawCircle(Color.White.copy(alpha = 0.15f), radius = 56.dp.toPx(), center = Offset(origin.x, origin.y))
-    drawCircle(Color.White.copy(alpha = 0.35f), radius = 56.dp.toPx(), center = Offset(origin.x, origin.y), style = Stroke(2.dp.toPx()))
-    drawCircle(Color.White.copy(alpha = 0.6f), radius = 22.dp.toPx(), center = Offset(knob.x, knob.y))
+    val ring = Balance.JOYSTICK_RADIUS_DP.dp.toPx()
+    drawCircle(Color.White.copy(alpha = 0.15f), radius = ring, center = Offset(origin.x, origin.y))
+    drawCircle(Color.White.copy(alpha = 0.35f), radius = ring, center = Offset(origin.x, origin.y), style = Stroke(2.dp.toPx()))
+    drawCircle(Color.White.copy(alpha = 0.6f), radius = Balance.JOYSTICK_KNOB_DP.dp.toPx(), center = Offset(knob.x, knob.y))
 }
+
+private const val STRESS_REPORT_SECONDS = 60.0
+private val ENEMY_TYPES = EnemyType.entries
 
 private fun formatTime(seconds: Int): String {
     val m = seconds / 60

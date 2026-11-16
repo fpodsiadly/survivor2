@@ -1,6 +1,19 @@
 package com.surv20.game.core.run
 
 import com.surv20.game.core.Balance
+import com.surv20.game.core.Balance.B1_COOLDOWN
+import com.surv20.game.core.Balance.B1_DAMAGE
+import com.surv20.game.core.Balance.B1_SPEED
+import com.surv20.game.core.Balance.COLLECT_DISTANCE
+import com.surv20.game.core.Balance.CONTACT_MARGIN
+import com.surv20.game.core.Balance.CRYSTAL_PULL_SPEED
+import com.surv20.game.core.Balance.HIT_FLASH_SECONDS
+import com.surv20.game.core.Balance.PLAYER_RADIUS
+import com.surv20.game.core.Balance.PROJECTILE_LIFE_SECONDS
+import com.surv20.game.core.Balance.PROJECTILE_RADIUS
+import com.surv20.game.core.Balance.SEPARATION_MAX_STEP
+import com.surv20.game.core.Balance.SEPARATION_SHARE
+import com.surv20.game.core.EnemyType
 import com.surv20.game.core.GameRandom
 import com.surv20.game.core.Vec2
 import kotlin.math.cos
@@ -9,12 +22,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
-
-// Enemy archetypes of the prototype (SPEC W20 types 1-2); the rest arrives in E3. Numbers are placeholders.
-enum class EnemyType(val speedFactor: Float, val health: Float, val radius: Float, val contactRatePerSecond: Double) {
-    WALKER(0.6f, 12f, 0.32f, 0.10),
-    SWARMER(1.1f, 4f, 0.22f, 0.06),
-}
 
 // Input of one simulation step.
 data class RunInput(val move: Vec2)
@@ -45,8 +52,9 @@ class RunSim(
         private set
     var playerY = 0f
         private set
-    var lastMove = Vec2.ZERO
+    var lastMove = Vec2.ZERO // facing: the last non-zero move
         private set
+    private var currentMove = Vec2.ZERO // this step's move, zero when standing (SPEC W19)
     val health = PlayerHealth(Balance.PLAYER_MAX_HEALTH)
     val experience = ExperienceBar()
     var time = 0.0
@@ -77,12 +85,14 @@ class RunSim(
         private set
 
     // --- Crystals ---
-    val crystalCapacity = 600
+    val crystalCapacity = Balance.CRYSTAL_MERGE_COUNT
     val crystalX = FloatArray(crystalCapacity)
     val crystalY = FloatArray(crystalCapacity)
     val crystalKind = IntArray(crystalCapacity) // CrystalKind.ordinal
-    private val crystalValue = IntArray(crystalCapacity)
+    internal val crystalValue = IntArray(crystalCapacity)
     private val crystalPulled = BooleanArray(crystalCapacity)
+    private val crystalSerial = LongArray(crystalCapacity) // drop order, for merging the oldest
+    private var nextCrystalSerial = 0L
     var crystalCount = 0
         private set
 
@@ -93,6 +103,9 @@ class RunSim(
     private val drops = CrystalDrops(random)
     private var weaponCooldown = 0.0
     private var spawnBudget = 0.0
+    private val spawnQueue = SpawnQueue(enemyCapacity) // surplus over the limit waits (SPEC "Wartości bazowe")
+    private val releasedSpawns = ArrayDeque<String>() // let out of the queue by kills, spawned at the next step
+    val spawnWaiting: Int get() = spawnQueue.waiting
     val events = StepEvents()
 
     fun step(dt: Double, input: RunInput): StepEvents {
@@ -104,7 +117,7 @@ class RunSim(
         if (stress) keepStressCounts() else spawnEnemies(dt)
         buildGrid()
         moveEnemies(dtf)
-        fireWeapon(dt)
+        if (!stress) fireWeapon(dt) // the stress load must not thin itself
         moveProjectiles(dtf)
         moveCrystals(dtf)
         return events
@@ -114,6 +127,7 @@ class RunSim(
 
     private fun movePlayer(dt: Float, input: RunInput) {
         val move = if (stress) Vec2(-sin(time.toFloat() * 0.6f), cos(time.toFloat() * 0.6f)) else input.move
+        currentMove = move
         if (move.lengthSquared > 0f) lastMove = move.normalized
         val speed = Balance.PLAYER_MOVE_SPEED.toFloat()
         val next = layout.clampPlayer(Vec2(playerX + move.x * speed * dt, playerY + move.y * speed * dt))
@@ -122,13 +136,13 @@ class RunSim(
     }
 
     private fun spawnEnemies(dt: Double) {
-        // Placeholder ramp until the chapter timeline drives spawning (E3): 1.5/s rising by 0.1/s each second.
-        spawnBudget += dt * (1.5 + time * 0.1)
+        // Placeholder ramp until the chapter timeline drives spawning (E3).
+        spawnBudget += dt * (Balance.SPAWN_RATE_START + time * Balance.SPAWN_RATE_GROWTH)
+        while (releasedSpawns.isNotEmpty()) spawnEnemyAtEdge(EnemyType.valueOf(releasedSpawns.removeFirst()))
         while (spawnBudget >= 1.0) {
             spawnBudget -= 1.0
-            if (enemyCount >= enemyCapacity) continue
-            val type = if (random.nextDouble() < 0.3) EnemyType.SWARMER else EnemyType.WALKER
-            spawnEnemyAtEdge(type)
+            val type = if (random.nextDouble() < Balance.SWARMER_SHARE) EnemyType.SWARMER else EnemyType.WALKER
+            for (id in spawnQueue.request(listOf(type.name))) spawnEnemyAtEdge(EnemyType.valueOf(id))
         }
     }
 
@@ -139,7 +153,7 @@ class RunSim(
         addEnemy(p.x, p.y, type)
     }
 
-    private fun addEnemy(x: Float, y: Float, type: EnemyType) {
+    internal fun addEnemy(x: Float, y: Float, type: EnemyType) {
         if (enemyCount >= enemyCapacity) return
         val i = enemyCount++
         enemyX[i] = x
@@ -182,7 +196,7 @@ class RunSim(
             // SPEC W19: far enemies come back just past the view edge on the side the player moves to.
             if (d2 > relocateR2) {
                 val camera = layout.cameraFor(Vec2(playerX, playerY))
-                val p = layout.relocate(Vec2(ex, ey), Vec2(playerX, playerY), camera, lastMove, random)
+                val p = layout.relocate(Vec2(ex, ey), Vec2(playerX, playerY), camera, currentMove, random)
                 if (p != null) {
                     enemyX[i] = p.x
                     enemyY[i] = p.y
@@ -296,7 +310,7 @@ class RunSim(
         projY[i] = y
         projVx[i] = vx
         projVy[i] = vy
-        projLife[i] = PROJECTILE_LIFE
+        projLife[i] = PROJECTILE_LIFE_SECONDS
         projDamage[i] = damage
     }
 
@@ -357,33 +371,50 @@ class RunSim(
         addCrystal(enemyX[i], enemyY[i], kind)
         kills++
         events.kills++
+        releasedSpawns.addAll(spawnQueue.onRemoved())
         // The grid still points at this slot this frame; moving the last enemy here keeps lookups valid enough
         // for one frame (a projectile may test the moved enemy's old cell), and the grid is rebuilt next step.
         removeEnemy(i)
     }
 
-    private fun addCrystal(x: Float, y: Float, kind: CrystalKind) {
+    internal fun addCrystal(x: Float, y: Float, kind: CrystalKind) {
         if (kind == CrystalKind.NONE) return
-        if (crystalCount >= crystalCapacity) {
-            // Full: fold the value into the oldest crystal instead of dropping it (PLAN P5).
-            crystalValue[0] += CrystalDrops.value(kind)
-            return
-        }
+        if (crystalCount >= crystalCapacity) mergeOldestCrystals()
         val i = crystalCount++
         crystalX[i] = x
         crystalY[i] = y
         crystalKind[i] = kind.ordinal
         crystalValue[i] = CrystalDrops.value(kind)
         crystalPulled[i] = false
+        crystalSerial[i] = nextCrystalSerial++
     }
 
-    private fun removeCrystal(i: Int) {
+    // PLAN P5: at the crystal limit the two oldest become one worth both, at the older one's place; the player
+    // loses nothing and the new drop still appears where the enemy died.
+    private fun mergeOldestCrystals() {
+        var oldest = -1
+        var second = -1
+        for (i in 0 until crystalCount) {
+            if (oldest < 0 || crystalSerial[i] < crystalSerial[oldest]) {
+                second = oldest
+                oldest = i
+            } else if (second < 0 || crystalSerial[i] < crystalSerial[second]) {
+                second = i
+            }
+        }
+        crystalValue[oldest] += crystalValue[second]
+        crystalKind[oldest] = max(crystalKind[oldest], crystalKind[second])
+        removeCrystal(second)
+    }
+
+    internal fun removeCrystal(i: Int) {
         val last = --crystalCount
         crystalX[i] = crystalX[last]
         crystalY[i] = crystalY[last]
         crystalKind[i] = crystalKind[last]
         crystalValue[i] = crystalValue[last]
         crystalPulled[i] = crystalPulled[last]
+        crystalSerial[i] = crystalSerial[last]
     }
 
     private fun moveCrystals(dt: Float) {
@@ -424,23 +455,9 @@ class RunSim(
             val y = playerY + (random.nextDouble().toFloat() - 0.5f) * layout.viewHalfSize.y * 2f
             addCrystal(x, y, CrystalKind.entries[1 + random.nextInt(0, 3)])
         }
-        for (i in 0 until enemyCount) enemyHp[i] = max(enemyHp[i], 1f) // projectiles must not thin the crowd
     }
 
     companion object {
-        const val PLAYER_RADIUS = 0.35f
-        const val PROJECTILE_RADIUS = 0.12f
-        const val COLLECT_DISTANCE = 0.4f
-        const val CRYSTAL_PULL_SPEED = 12f
-        const val HIT_FLASH_SECONDS = 0.1f // SPEC W39
-        const val CONTACT_MARGIN = 0.05f // enemies pressed against the drone still touch it
-        const val SEPARATION_SHARE = 0.5f // share of the overlap removed per frame
-        const val SEPARATION_MAX_STEP = 0.25f // world units per frame, placeholder
-        const val PROJECTILE_LIFE = 1.6f
-        const val B1_COOLDOWN = 0.8 // placeholder
-        const val B1_SPEED = 9f // placeholder
-        const val B1_DAMAGE = 15f // 10 ATK × 1.5 at level 1 (RESEARCH §5.1)
-
         // Stress scenario counts (SPEC W43).
         const val STRESS_ENEMIES = 300
         const val STRESS_PROJECTILES = 200

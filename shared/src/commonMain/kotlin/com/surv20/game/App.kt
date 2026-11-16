@@ -34,8 +34,8 @@ private enum class Screen { MENU, RUN, STRESS }
 fun GameApp(platform: GamePlatform) {
     var screen by remember { mutableStateOf(Screen.MENU) }
     when (screen) {
-        Screen.RUN -> RunView(stress = false, showFps = platform.isDebugBuild, onExit = { screen = Screen.MENU })
-        Screen.STRESS -> RunView(stress = true, showFps = true, onExit = { screen = Screen.MENU })
+        Screen.RUN -> RunView(stress = false, showFps = platform.isDebugBuild, log = platform::log, onExit = { screen = Screen.MENU })
+        Screen.STRESS -> RunView(stress = true, showFps = true, log = platform::log, onExit = { screen = Screen.MENU })
         Screen.MENU -> Menu(platform, onPlay = { screen = Screen.RUN }, onStress = { screen = Screen.STRESS })
     }
 }

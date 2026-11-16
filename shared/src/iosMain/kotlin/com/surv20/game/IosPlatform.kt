@@ -31,6 +31,11 @@ object IosPlatform : GamePlatform {
 
     @OptIn(kotlin.experimental.ExperimentalNativeApi::class)
     override val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary
+
+    // Goes to the Xcode console; NSLog would treat the message as a format string.
+    override fun log(message: String) {
+        println("Surv20: $message")
+    }
 }
 
 class UserDefaultsStore(private val defaults: NSUserDefaults) : KeyValueStore {

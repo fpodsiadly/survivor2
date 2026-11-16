@@ -363,3 +363,18 @@ deviation: obrazki zastąpione kształtami (dron = trójkąt, wrogowie = kółka
 other check: P3–P6 na emulatorze Androida 15 (x86_64, renderowanie programowe swiftshader, 1080×2400): menu, run (joystick, tłum, kryształy, HUD, pauza) i test wydajności działają bez awarii; FPS emulatora (≈44, 1% low ≈15) nie jest miarą W43
 deviation: odpychanie tłumu zmienione z prędkości na korektę pozycji (połowa nakładki na klatkę, maks. 0,25 j.), wrogowie nie wchodzą w drona, kontakt z marginesem 0,05 j.; powód: na zrzucie z emulatora tłum zlewał się w jedną plamę | zatwierdzone przez użytkownika: nie (strojenie w E2)
 suite: shared gradle :shared:testDebugUnitTest rc=0, 106 testów, red: brak
+
+## Realizacja 2026-11-16 (5): poprawki po final-check E1
+branch: surv20 main @ ab4ae53 + zmiany lokalne (niezacommitowane); wersja 0.2.1 (versionCode 3)
+fix 1 (W43, P6): core/FramePacer.kt — najwyżej 60 klatek na sekundę (na 90/120/144 Hz część vsynców jest pomijana), symulacja w stałych krokach 1/60 s (maks. 3 na klatkę), więc odpychanie tłumu nie zależy już od częstotliwości ekranu; wynik testu wydajności co 60 s w logu przez `GamePlatform.log` (`adb logcat -s Surv20`) | FramePacerTest green
+fix 2 (K5, W43): tłum, kryształy i pociski rysowane jako sprite'y z jednego atlasu (`drawImage` z wycinkiem, atlas z kształtów do czasu grafik z Recraft) zamiast punktów, więc pomiar P7 obejmuje docelową drogę rysowania K5
+fix 3 (W41, W1): liczby runu i joysticka przeniesione do core/Balance.kt (tymczasowe oznaczone `placeholder`), typy wrogów do nowego core/Content.kt
+fix 4 (W19): przeniesienie odległych wrogów dostaje bieżący ruch gracza, więc gdy gracz stoi, strona jest losowa; `lastMove` zostaje tylko jako kierunek drona | RunSimRulesTest green
+fix 5 (P5): przy 300 kryształach (Balance.CRYSTAL_MERGE_COUNT) dwa najstarsze (według kolejności upuszczenia) łączą się w jeden o sumie wartości, nowy kryształ pojawia się w miejscu zabójstwa | RunSimRulesTest green
+fix 6 (P5, W4): testy wyboru najbliższego celu, pominięcia bliższego wroga poza ekranem i braku strzału bez wrogów na ekranie | RunSimRulesTest green
+fix 7 (P6): w teście wydajności broń B1 nie strzela, więc tłum nie ginie (Kills 0); usunięta martwa linia `max(hp, 1f)` | RunSimRulesTest green
+fix 8 (P4): nadwyżka ponad 400 czeka w `SpawnQueue`, a zabójstwa zwalniają z kolejki kolejnych wrogów; spawner hord (W11) zostaje na E3 razem z osią czasu i alarmami | RunSimRulesTest green
+focus: mutacje (każda cofa jedną poprawkę, oczekiwany czerwony test): relocate z lastMove, broń w teście wydajności, scalanie w slot 0, kolejność slotów zamiast wieku, brak sprawdzenia „na ekranie”, najdalszy cel, pominięte zwolnienia z kolejki, FramePacer bez tolerancji, FramePacer bez limitu | wszystkie rc=1
+suite: shared gradle :shared:testDebugUnitTest rc=0, 118 testów, red: brak; gradle :app:assembleDebug rc=0
+other check: emulator Androida 15 (swiftshader): test wydajności rysuje sprite'y z atlasu, Kills 0; logcat: „W43 stress 60 s: avg 49 FPS, 1% low 22 FPS, window 59 s” (emulator rysuje programowo, to nie jest miara W43)
+not checked: kompilacja iOS (`GamePlatform.log`, brak macOS); zachowanie na telefonie 90/120 Hz

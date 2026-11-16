@@ -13,19 +13,20 @@ Po każdym pushu na `main` GitHub Actions publikuje wydanie ze stałymi linkami.
 
 ## Status
 
-Wersja 0.2.0: prototyp runu (etap E1) i cała logika gry z testami.
+Wersja 0.2.1: prototyp runu (etap E1) i cała logika gry z testami.
 
 Działa:
 - aplikacja Android i iOS z jednego modułu `shared` (Kotlin Multiplatform + Compose Multiplatform),
 - **prototyp runu:**
   - pływający joystick (dolne 2/3 ekranu, jeden palec),
   - dron gracza z bronią, która co 0,8 s rzuca pocisk w najbliższego wroga,
-  - dwa typy wrogów z narastającym spawnem, odpychaniem w tłumie i przenoszeniem odległych,
-  - kryształy XP z przyciąganiem i poziomami,
+  - dwa typy wrogów z narastającym spawnem, odpychaniem w tłumie i przenoszeniem odległych (gdy dron stoi, po losowej stronie); ponad limit 400 wrogowie czekają w kolejce,
+  - kryształy XP z przyciąganiem i poziomami; przy 300 kryształach dwa najstarsze łączą się w jeden,
+  - najwyżej 60 klatek na sekundę i symulacja w stałych krokach 1/60 s, więc gra działa tak samo na ekranach 60, 90 i 120 Hz,
   - HP z nietykalnością po trafieniu, pauza i ekran porażki,
-  - na razie proste kształty zamiast grafik,
-- **test wydajności** (menu, tylko w buildzie debug): 300 wrogów, 200 pocisków i 300 kryształów, licznik średnich FPS i „1% low” z okna 60 s (SPEC W43),
-- reguły gry jako czysta logika z 106 testami JUnit:
+  - na razie proste kształty zamiast grafik, rysowane jako sprite'y z jednego atlasu (ta sama droga, którą pójdą grafiki z Recraft),
+- **test wydajności** (menu, tylko w buildzie debug): 300 wrogów, 200 pocisków i 300 kryształów, licznik średnich FPS i „1% low” z okna 60 s (SPEC W43); co minutę wynik trafia też do logu (`adb logcat -s Surv20`),
+- reguły gry jako czysta logika ze 118 testami JUnit:
   - **ekwipunek:** 15 stopni rzadkości, pełna tabela merge'a, „Połącz wszystko”, ulepszanie z limitami, reset, statystyki i bonusy stopni,
   - **run:** oś czasu z bossami, arena i alarmy, sloty 6+6, karty 1 z 3, ewolucje (także aktywna+aktywna), skrzynia 1/3/5, XP i kryształy,
   - **mapy:** geometria trzech formatów (otwarta, zamknięta, korytarz), kamera, spawn hord, przenoszenie odległych wrogów, limit 400 wrogów,
@@ -62,6 +63,8 @@ Ten sam co w grze JumperIdle:
 - `shared/src/commonMain/kotlin/com/surv20/game/`:
   - `core/` to czysta logika bez Androida i iOS:
     - `Balance.kt` zawiera wszystkie liczby do strojenia,
+    - `Content.kt` zawiera treść gry (na razie typy wrogów),
+    - `FramePacer.kt` ogranicza klatki do 60 i wylicza stałe kroki symulacji,
     - `equipment/` to przedmioty, merge, ulepszanie i statystyki,
     - `run/` to oś czasu, umiejętności, karty, skrzynia, XP, mapy, walka, joystick i symulacja runu `RunSim` (tablice, siatka przestrzenna, bez fizyki),
     - `meta/` to nagrody, konto, talenty, rozdziały i język,

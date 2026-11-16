@@ -26,6 +26,35 @@ object Balance {
     // XP to go from the level to the next. Placeholder: 5 for level 1, +3 per level.
     fun xpToNextLevel(level: Int): Long = 5L + 3L * (level - 1)
 
+    const val CRYSTAL_MERGE_COUNT = 300 // at this many crystals the oldest two merge (PLAN P5)
+    const val COLLECT_DISTANCE = 0.4f // placeholder
+    const val CRYSTAL_PULL_SPEED = 12f // world units per second, placeholder
+
+    // --- Run prototype (PLAN E1): bodies, crowd, default weapon B1 ---
+    const val PLAYER_RADIUS = 0.35f // placeholder
+    const val CONTACT_MARGIN = 0.05f // enemies pressed against the drone still touch it, placeholder
+    const val SEPARATION_SHARE = 0.5f // share of the crowd overlap removed per simulation step, placeholder
+    const val SEPARATION_MAX_STEP = 0.25f // world units per simulation step, placeholder
+    const val HIT_FLASH_SECONDS = 0.1f // SPEC W39
+    const val SPAWN_RATE_START = 1.5 // enemies per second until the timeline drives spawning (E3), placeholder
+    const val SPAWN_RATE_GROWTH = 0.1 // added per second of run, placeholder
+    const val SWARMER_SHARE = 0.3 // placeholder
+    const val PROJECTILE_RADIUS = 0.12f // placeholder
+    const val PROJECTILE_LIFE_SECONDS = 1.6f // placeholder
+    const val B1_COOLDOWN = 0.8 // placeholder
+    const val B1_SPEED = 9f // world units per second, placeholder
+    const val B1_DAMAGE = 15f // 10 ATK × 1.5 at level 1 (RESEARCH §5.1)
+
+    // --- Controls (SPEC W1) ---
+    const val JOYSTICK_RADIUS_DP = 56f // placeholder
+    const val JOYSTICK_DEAD_ZONE_DP = 6f // placeholder
+    const val JOYSTICK_KNOB_DP = 22f // placeholder
+
+    // --- Frame pacing (SPEC W43): frames capped at 60, simulation in fixed steps ---
+    const val FRAME_RATE_CAP = 60
+    const val SIM_STEP_SECONDS = 1.0 / 60
+    const val MAX_SIM_STEPS_PER_FRAME = 3 // slower frames drop time instead of spiralling
+
     // --- Cards and in-run chest (SPEC W15) ---
     const val GOLD_WHEN_NO_CARD = 50L // placeholder
     val CHEST_COUNT_ODDS = listOf(0.70, 0.25, 0.05) // 1, 3, 5 upgrades
